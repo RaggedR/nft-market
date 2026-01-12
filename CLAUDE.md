@@ -1,178 +1,88 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working on this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-Tindart is an AI art marketplace with three main components:
-
-1. **Flutter App** (`flutter/`) - Web frontend for minting, browsing, and verifying NFTs
-2. **Backend API** (`backend/`) - Node.js/Express server handling watermarking, encryption, and IPFS
-3. **Smart Contracts** (`contracts/`) - ERC-721 NFT contract with marketplace on Polygon
-
-## Common Commands
-
-### Flutter
-
-```bash
-cd flutter
-flutter pub get          # Install dependencies
-flutter run -d chrome    # Run in browser
-flutter test             # Run tests
-flutter analyze          # Static analysis
-dart format .            # Format code
-```
-
-### Backend
-
-```bash
-cd backend
-npm install              # Install dependencies
-npm run dev              # Run with nodemon
-npm start                # Run production
-npm test                 # Run Jest tests
-```
-
-### Contracts
-
-```bash
-cd contracts
-npm install              # Install dependencies
-npm run compile          # Compile contracts
-npm test                 # Run Hardhat tests
-npm run node             # Start local node
-npm run deploy:local     # Deploy to local node
-npm run deploy:mumbai    # Deploy to Polygon testnet
-npm run deploy:polygon   # Deploy to Polygon mainnet
-```
+Tindart is an AI art marketplace that combines invisible watermarking, NFT minting on Polygon, and legal licensing. The platform solves the problem of NFT ownership not conveying actual copyright by embedding watermarks and attaching explicit license agreements to each mint.
 
 ## Architecture
 
-### Flutter App Structure
+Three independent components that communicate via API and blockchain:
 
 ```
-flutter/lib/
-├── main.dart           # App entry, providers setup
-├── router.dart         # GoRouter configuration
-├── theme.dart          # Light/dark theme definitions
-├── models/             # Data models (Token)
-├── pages/              # Screen widgets
-│   ├── home_page.dart
-│   ├── mint_page.dart
-│   ├── gallery_page.dart
-│   ├── token_detail_page.dart
-│   └── verify_page.dart
-├── providers/          # State management (Provider)
-│   ├── wallet_provider.dart   # Wallet connection state
-│   └── mint_provider.dart     # Minting flow state
-├── services/           # API communication
-│   └── api_service.dart
-└── widgets/            # Reusable components
-    └── wallet_button.dart
+Flutter Web App  →  Node.js Backend  →  Polygon Blockchain
+     ↓                    ↓                    ↓
+  WalletConnect      Watermark C++        ERC-721 Contract
+                     IPFS (Pinata)        (TindartNFT.sol)
+                     Cloud KMS
+                     Firestore
 ```
 
-### Backend Structure
+**Mint Flow**: Upload → Duplicate check → Watermark embed → Encrypt original → Upload to IPFS → Mint NFT → Store metadata in Firestore
 
-```
-backend/src/
-├── index.js            # Express app setup
-├── middleware/         # Auth, validation
-├── routes/             # API endpoints
-└── services/           # Business logic
-    ├── watermark.js    # Watermark embedding/detection
-    ├── encryption.js   # AES encryption for originals
-    ├── ipfs.js         # Pinata IPFS uploads
-    ├── kms.js          # Google Cloud KMS key management
-    └── blockchain.js   # Contract interactions
-```
+**License Types**: Display (personal use, $1), Commercial (monetization rights, $5), Transfer (full copyright, $10)
 
-### Smart Contract
+## Commands
 
-`contracts/TindartNFT.sol`:
-- Inherits: ERC721, ERC721URIStorage, ERC721Royalty, Ownable, ReentrancyGuard
-- License types: Display (0), Commercial (1), Transfer (2)
-- Built-in marketplace with list/delist/buy
-- 2.5% royalty to creator, 2.5% platform fee
-- Duplicate prevention via imageHash mapping
-
-## Key Patterns
-
-### State Management (Flutter)
-
-Uses Provider with ChangeNotifierProxyProvider for dependent providers:
-- `WalletProvider`: Manages wallet connection state
-- `MintProvider`: Depends on WalletProvider for minting operations
-
-### API Authentication
-
-Backend uses SIWE (Sign-In with Ethereum) for wallet authentication.
-
-### License Types
-
-```dart
-enum LicenseType { display, commercial, transfer }
-```
-
-```solidity
-enum LicenseType { Display, Commercial, Transfer }
-```
-
-## Testing
-
-### Flutter Tests
-
-Located in `flutter/test/`. Run with:
+### Backend (Node.js/Express)
 ```bash
-cd flutter && flutter test
+cd backend
+npm install
+npm run dev          # Development with nodemon
+npm start            # Production
+npm test             # Jest tests
 ```
 
-### Backend Tests
-
-Uses Jest. Located alongside source or in `__tests__/`. Run with:
+### Smart Contracts (Hardhat/Solidity)
 ```bash
-cd backend && npm test
+cd contracts
+npm install
+npm run compile                    # Compile contracts
+npm test                           # Run all tests
+npx hardhat test test/TindartNFT.test.js  # Single test file
+npm run node                       # Start local Hardhat node
+npm run deploy:local               # Deploy to local node
+npm run deploy:mumbai              # Deploy to Polygon Mumbai testnet
+npm run deploy:polygon             # Deploy to Polygon mainnet
 ```
 
-### Contract Tests
-
-Uses Hardhat + Chai. Located in `contracts/test/`. Run with:
+### Flutter App
 ```bash
-cd contracts && npm test
+cd flutter
+flutter pub get
+flutter run -d chrome              # Run in Chrome
+flutter build web                  # Build for production
 ```
 
-## CI/CD
+## Key Technical Details
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
-- Detects which components changed
-- Runs tests only for changed components
-- Flutter: format check, analyze, test
-- Backend: npm test
-- Contracts: compile, test
+### Smart Contract (contracts/TindartNFT.sol)
+- ERC-721 with ERC-2981 royalties (2.5% to creator on secondary sales)
+- 2.5% platform fee on marketplace sales
+- Duplicate prevention via `imageHashExists` mapping
+- Integrated marketplace: `list()`, `delist()`, `buy()`
+- Auto-delists tokens on external transfers
 
-## Environment Setup
+### Backend Services (backend/src/services/)
+- `watermark.js`: Interfaces with external C++ binaries (`WATERMARK_BINARY` env var)
+- `encryption.js`: AES-256 encryption, supports Google Cloud KMS or dev key
+- `ipfs.js`: Pinata uploads for encrypted blobs and metadata
+- `blockchain.js`: Ethers.js contract interactions with server-side minting wallet
+- `duplicate.js`: SHA-256 hash + perceptual hash checking
 
-### Backend requires:
+### Authentication
+Uses Sign-In with Ethereum (SIWE). Client creates message, signs with wallet, sends as Bearer token (base64-encoded JSON with `message` and `signature` fields).
 
-1. Firebase Admin SDK service account
-2. Google Cloud KMS key ring and key
-3. Pinata API credentials
-4. Deployed contract address
+### Flutter State Management
+- `WalletProvider`: WalletConnect session management
+- `MintProvider`: Multi-step mint flow state
+- Uses `go_router` for navigation with wallet connection guards
 
-### Contracts require:
+## Environment Configuration
 
-1. Private key with MATIC for gas
-2. RPC URLs (Alchemy/Infura)
-3. Polygonscan API key (for verification)
+Backend requires: `POLYGON_RPC_URL`, `TINDART_CONTRACT_ADDRESS`, `MINTER_PRIVATE_KEY`, `PINATA_JWT`, Firebase credentials, and optionally KMS config.
 
-## File Conventions
+Contracts require: `PRIVATE_KEY`, RPC URLs for target networks, `POLYGONSCAN_API_KEY` for verification.
 
-- Flutter: Standard Flutter/Dart conventions
-- Backend: CommonJS modules, camelCase
-- Contracts: Solidity style guide, custom errors over require strings
-
-## Important Notes
-
-- Watermark engine is external C++ (referenced but not in this repo)
-- Encrypted originals stored on IPFS, keys in Cloud KMS
-- Contract uses OpenZeppelin v5.0 base contracts
-- Platform wallet receives 2.5% of marketplace sales
+Both components have `.env.example` files with all required variables.

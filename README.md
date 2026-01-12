@@ -1,46 +1,121 @@
-# Tindart
+# Tindart NFT
 
 AI art marketplace with verifiable provenance, watermark-based authentication, and clear copyright licensing.
 
-## Overview
+## Problem
 
-Tindart combines invisible watermarking, NFT minting, and legal licensing into a single transaction. Artists can protect their work while buyers receive clear legal rights.
+- **NFTs don't convey ownership** - buying an NFT doesn't transfer copyright or usage rights
+- **AI art has no provenance** - anyone can generate similar images, no way to prove who created first
+- **Stolen art is rampant** - images are re-minted without consequences
 
-### Key Features
+## Solution
 
-- **Watermark Verification**: Invisible watermarks embedded in images survive print-and-scan
-- **NFT Provenance**: ERC-721 tokens on Polygon with on-chain license terms
-- **Clear Licensing**: Three license tiers (Display, Commercial, Transfer)
-- **Duplicate Detection**: Perceptual hashing prevents stolen art from being minted
-- **Encrypted Originals**: High-res originals stored encrypted on IPFS
+Combine invisible watermarking + NFT minting + legal licensing into a single transaction.
+
+```
+Artist uploads image
+       ↓
+Watermark embedded (unique ID)
+       ↓
+Image encrypted (original preserved)
+       ↓
+NFT minted with license terms
+       ↓
+Listed on marketplace
+       ↓
+Buyer purchases → gets NFT + clear legal rights
+       ↓
+Anyone can verify authenticity via watermark detection
+```
 
 ## Architecture
 
 ```
-tindart/
-├── flutter/        # Flutter web frontend
-├── backend/        # Node.js API (Express)
-└── contracts/      # Solidity smart contracts (Hardhat)
+┌─────────────────────────────────────────────────────────────┐
+│                      Tindart Platform                        │
+├─────────────────────────────────────────────────────────────┤
+│  Flutter Web    │    Node.js API    │    Watermark Engine   │
+│   (Frontend)    │     (Backend)     │        (C++)          │
+├─────────────────────────────────────────────────────────────┤
+│     Polygon     │    Cloud KMS      │         IPFS          │
+│   Blockchain    │     (Keys)        │   (Encrypted Blobs)   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Tech Stack
+## Project Structure
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Flutter Web |
-| Backend | Node.js + Express |
-| Blockchain | Polygon (ERC-721) |
-| Storage | IPFS (Pinata) + Firestore |
-| Key Management | Google Cloud KMS |
-| Wallet | WalletConnect / MetaMask |
+```
+tindartNFT/
+├── backend/          # Node.js Express API
+│   └── src/
+│       ├── routes/       # mint, detect, verify endpoints
+│       ├── services/     # watermark, encryption, IPFS, blockchain
+│       └── middleware/   # SIWE authentication
+├── contracts/        # Solidity smart contracts
+│   ├── TindartNFT.sol    # ERC-721 with marketplace
+│   ├── scripts/          # Deployment scripts
+│   └── test/             # Contract tests
+└── flutter/          # Flutter web frontend
+    └── lib/
+        ├── pages/        # home, mint, gallery, verify, token detail
+        ├── providers/    # wallet, mint state management
+        └── services/     # API client
+```
 
-## Getting Started
+## Features
+
+### License Types
+
+| Type | Rights | Price |
+|------|--------|-------|
+| Display | Personal display, resale of NFT | $1 |
+| Commercial | Monetization, merchandise, derivatives | $5 |
+| Transfer | Full copyright transfer | $10 |
+
+### Smart Contract
+
+- ERC-721 with integrated marketplace
+- 2.5% royalty to creator on secondary sales (EIP-2981)
+- 2.5% platform fee
+- Duplicate prevention via image hash
+
+### Security
+
+- Invisible DFT-based watermarking (survives print-and-scan)
+- AES-256 encryption of originals
+- Google Cloud KMS for key management
+- Sign-In with Ethereum (SIWE) authentication
+
+## Setup
 
 ### Prerequisites
 
-- Flutter SDK (>=3.0.0)
-- Node.js (>=20)
-- A Polygon wallet with testnet MATIC
+- Node.js 18+
+- Flutter 3.0+
+- Polygon wallet funded with MATIC
+
+### Backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Configure environment variables
+npm run dev
+```
+
+### Smart Contracts
+
+```bash
+cd contracts
+npm install
+cp .env.example .env
+# Configure private key and RPC URLs
+
+npm run compile
+npm test
+npm run deploy:mumbai  # Testnet
+```
 
 ### Flutter App
 
@@ -50,74 +125,33 @@ flutter pub get
 flutter run -d chrome
 ```
 
-### Backend
+## API Endpoints
 
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your credentials
-npm install
-npm run dev
-```
+### Public
 
-### Smart Contracts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/verify/:tokenId` | Get token verification info |
+| POST | `/api/detect` | Run watermark detection |
 
-```bash
-cd contracts
-cp .env.example .env
-# Edit .env with your private key and RPC URL
-npm install
-npm run compile
-npm run test
-npm run deploy:mumbai  # Deploy to testnet
-```
+### Authenticated
 
-## License Types
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/mint` | Watermark + encrypt + mint NFT |
+| GET | `/api/mint/price` | Get minting prices |
 
-| Type | Rights | Base Price |
-|------|--------|------------|
-| Display | Personal display, resale of NFT | $1 |
-| Commercial | Monetization, merchandise, derivatives | $5 |
-| Transfer | Full copyright transfer | $10 |
+## Tech Stack
 
-## Development
-
-### Running Tests
-
-```bash
-# Flutter
-cd flutter && flutter test
-
-# Backend
-cd backend && npm test
-
-# Contracts
-cd contracts && npm test
-```
-
-### CI/CD
-
-GitHub Actions runs on push/PR to `main` and `develop`:
-- Flutter: format, analyze, test
-- Backend: npm test
-- Contracts: compile, test
-
-## Environment Variables
-
-### Backend (.env)
-
-See `backend/.env.example` for required variables:
-- Firebase Admin SDK credentials
-- Google Cloud KMS configuration
-- Pinata API keys
-- Contract addresses
-
-### Contracts (.env)
-
-See `contracts/.env.example` for required variables:
-- Private key for deployment
-- RPC URLs for Polygon networks
-- Polygonscan API key for verification
+| Layer | Technology |
+|-------|------------|
+| Frontend | Flutter Web |
+| Backend | Node.js, Express |
+| Blockchain | Polygon (ERC-721) |
+| Wallet | WalletConnect, MetaMask |
+| Storage | IPFS (Pinata), Firestore |
+| Key Management | Google Cloud KMS |
+| Auth | Sign-In with Ethereum (SIWE) |
 
 ## License
 
