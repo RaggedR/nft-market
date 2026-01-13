@@ -156,7 +156,8 @@ Expiration Time: ${expiry.toIso8601String()}''';
   }
 
   String _generateNonce() {
-    final bytes = List<int>.generate(16, (i) => DateTime.now().microsecond % 256);
+    final bytes =
+        List<int>.generate(16, (i) => DateTime.now().microsecond % 256);
     return base64Url.encode(bytes).substring(0, 16);
   }
 
