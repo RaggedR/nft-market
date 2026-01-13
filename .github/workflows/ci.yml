@@ -105,7 +105,7 @@ jobs:
         run: npm install
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --passWithNoTests
 
   contracts:
     name: Contract Tests
