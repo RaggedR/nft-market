@@ -264,7 +264,7 @@ class _TokenDetailPageState extends State<TokenDetailPage> {
   }
 
   void _copyLink() {
-    final url = 'https://tindart.com/token/${widget.tokenId}';
+    final url = 'https://nftmarket.com/token/${widget.tokenId}';
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Link copied to clipboard')),

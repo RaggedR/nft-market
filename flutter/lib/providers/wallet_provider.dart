@@ -131,12 +131,12 @@ class WalletProvider extends ChangeNotifier {
 
     // SIWE message format
     final message = '''
-tindart.com wants you to sign in with your Ethereum account:
+nftmarket.com wants you to sign in with your Ethereum account:
 $address
 
-Sign in to Tindart
+Sign in to NFTmarket
 
-URI: https://api.tindart.com
+URI: https://api.nftmarket.com
 Version: 1
 Chain ID: $_chainId
 Nonce: ${_generateNonce()}
