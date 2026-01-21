@@ -56,7 +56,8 @@ cd backend
 npm install
 npm run dev          # Development with nodemon
 npm start            # Production
-npm test             # Jest tests
+npm test             # Run all Jest tests
+npm test -- --testPathPattern=auth  # Run tests matching pattern
 ```
 
 ### Smart Contracts (Hardhat/Solidity)
@@ -115,11 +116,22 @@ Contracts require: `PRIVATE_KEY`, RPC URLs for target networks, `POLYGONSCAN_API
 
 Both components have `.env.example` files with all required variables.
 
+### Local Development Mode
+
+Set `USE_KMS=false` in backend `.env` to use local encryption key (`DEV_ENCRYPTION_KEY`) instead of Google Cloud KMS. Generate a dev key with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 ## File Conventions
 
 - Flutter: Standard Flutter/Dart conventions, flutter_lints
 - Backend: CommonJS modules, camelCase
 - Contracts: Solidity style guide, custom errors over require strings
+
+## CI/CD
+
+GitHub Actions runs on push/PR to `main` and `develop`. Only runs checks for changed components (flutter, backend, or contracts). Non-code changes (docs, config) can merge without CI.
 
 ## Important Notes
 
