@@ -12,18 +12,21 @@ const { v4: uuidv4 } = require('uuid');
 const aiService = require('../services/ai-generation');
 
 // Rate limit: 10 generations per hour per wallet (Stability AI is expensive)
-const generateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
-  keyGenerator: (req) => req.wallet || 'anonymous',
-  message: {
-    error: 'Too many generation requests. Please try again later.',
-    code: 'RATE_LIMITED'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { xForwardedForHeader: false },
-});
+// Skip rate limiting in test mode to avoid open handles from MemoryStore timers
+const generateLimiter = process.env.NODE_ENV === 'test'
+  ? (req, res, next) => next()  // No-op middleware for tests
+  : rateLimit({
+      windowMs: 60 * 60 * 1000, // 1 hour
+      max: 10,
+      keyGenerator: (req) => req.wallet || 'anonymous',
+      message: {
+        error: 'Too many generation requests. Please try again later.',
+        code: 'RATE_LIMITED'
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+      validate: { xForwardedForHeader: false },
+    });
 
 function createRouter() {
   const router = express.Router();

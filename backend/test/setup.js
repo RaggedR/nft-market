@@ -17,3 +17,9 @@ process.env.DEV_ENCRYPTION_KEY = 'a'.repeat(64);
 
 // Suppress console.log during tests (optional - comment out to debug)
 // global.console.log = jest.fn();
+
+/**
+ * Global cleanup after all tests complete
+ * Note: Services with background timers (like ai-generation.js) skip starting
+ * their intervals when NODE_ENV=test to ensure Jest exits cleanly.
+ */

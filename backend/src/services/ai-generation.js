@@ -13,20 +13,23 @@ const generations = new Map();
 // TTL for stored generations (1 hour)
 const GENERATION_TTL_MS = 60 * 60 * 1000;
 
-// Cleanup old generations every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [id, data] of generations.entries()) {
-    if (now - data.createdAt.getTime() > GENERATION_TTL_MS) {
-      generations.delete(id);
-      cleaned++;
+// Cleanup old generations every 10 minutes (skip in test mode to avoid open handles)
+let cleanupInterval = null;
+if (process.env.NODE_ENV !== 'test') {
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [id, data] of generations.entries()) {
+      if (now - data.createdAt.getTime() > GENERATION_TTL_MS) {
+        generations.delete(id);
+        cleaned++;
+      }
     }
-  }
-  if (cleaned > 0) {
-    console.log(`[AI Service] Cleaned up ${cleaned} expired generations`);
-  }
-}, 10 * 60 * 1000);
+    if (cleaned > 0) {
+      console.log(`[AI Service] Cleaned up ${cleaned} expired generations`);
+    }
+  }, 10 * 60 * 1000);
+}
 
 // Placeholder image (1x1 blue PNG)
 const PLACEHOLDER_PNG = Buffer.from(
