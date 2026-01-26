@@ -6,6 +6,7 @@ const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const app = require('../../src/index');
 const blockchainService = require('../../src/services/blockchain');
@@ -33,21 +34,83 @@ Expiration Time: ${new Date(Date.now() + 3600000).toISOString()}`;
   return token;
 }
 
-// Create a minimal test image (1x1 red PNG)
-function createTestImage() {
-  // Minimal valid PNG (1x1 red pixel)
-  const png = Buffer.from([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-    0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-    0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-    0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, // IDAT chunk
-    0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
-    0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x05, 0xfe,
-    0xd4, 0xef, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, // IEND chunk
-    0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
+/**
+ * Create a valid 1x1 PNG image with the specified RGB color.
+ * This creates properly formatted PNGs that pass strict validation.
+ * @param {number} r - Red component (0-255)
+ * @param {number} g - Green component (0-255)
+ * @param {number} b - Blue component (0-255)
+ * @returns {Buffer} Valid PNG buffer
+ */
+function createTestImage(r = 255, g = 0, b = 0) {
+  // PNG signature
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  // IHDR chunk: 1x1, 8-bit RGB
+  const ihdrData = Buffer.from([
+    0x00, 0x00, 0x00, 0x01, // width: 1
+    0x00, 0x00, 0x00, 0x01, // height: 1
+    0x08,                   // bit depth: 8
+    0x02,                   // color type: RGB
+    0x00,                   // compression: deflate
+    0x00,                   // filter: adaptive
+    0x00                    // interlace: none
   ]);
-  return png;
+  const ihdrCrc = crc32(Buffer.concat([Buffer.from('IHDR'), ihdrData]));
+  const ihdr = Buffer.concat([
+    Buffer.from([0x00, 0x00, 0x00, 0x0d]), // length: 13
+    Buffer.from('IHDR'),
+    ihdrData,
+    ihdrCrc
+  ]);
+
+  // IDAT chunk: compressed pixel data (filter byte + RGB)
+  const rawPixel = Buffer.from([0x00, r, g, b]); // filter=none + RGB
+  const compressed = zlib.deflateSync(rawPixel, { level: 9 });
+  const idatCrc = crc32(Buffer.concat([Buffer.from('IDAT'), compressed]));
+  const idatLen = Buffer.alloc(4);
+  idatLen.writeUInt32BE(compressed.length);
+  const idat = Buffer.concat([
+    idatLen,
+    Buffer.from('IDAT'),
+    compressed,
+    idatCrc
+  ]);
+
+  // IEND chunk
+  const iendCrc = crc32(Buffer.from('IEND'));
+  const iend = Buffer.concat([
+    Buffer.from([0x00, 0x00, 0x00, 0x00]), // length: 0
+    Buffer.from('IEND'),
+    iendCrc
+  ]);
+
+  return Buffer.concat([signature, ihdr, idat, iend]);
+}
+
+/**
+ * Calculate CRC32 for PNG chunks
+ */
+function crc32(data) {
+  // CRC32 lookup table
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[i] = c;
+  }
+
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc = table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  }
+  crc = (crc ^ 0xffffffff) >>> 0;
+
+  const buf = Buffer.alloc(4);
+  buf.writeUInt32BE(crc);
+  return buf;
 }
 
 describe('Mint Route', () => {
@@ -113,8 +176,8 @@ describe('Mint Route', () => {
     });
 
     it('should successfully mint with display license', async () => {
-      // Use unique image data for each test
-      const uniqueImage = Buffer.concat([createTestImage(), Buffer.from('display')]);
+      // Use unique image with different color
+      const uniqueImage = createTestImage(255, 0, 0); // Red
 
       const res = await request(app)
         .post('/api/mint')
@@ -138,7 +201,7 @@ describe('Mint Route', () => {
     });
 
     it('should successfully mint with commercial license', async () => {
-      const uniqueImage = Buffer.concat([createTestImage(), Buffer.from('commercial')]);
+      const uniqueImage = createTestImage(0, 255, 0); // Green
 
       const res = await request(app)
         .post('/api/mint')
@@ -155,7 +218,7 @@ describe('Mint Route', () => {
 
     it('should successfully mint with transfer license', async () => {
       // Use a unique image to avoid duplicate detection
-      const uniqueImage = Buffer.concat([createTestImage(), Buffer.from('transfer')]);
+      const uniqueImage = createTestImage(0, 0, 255); // Blue
 
       const res = await request(app)
         .post('/api/mint')
@@ -200,10 +263,10 @@ describe('Mint Route', () => {
     });
 
     it('should mint multiple unique images', async () => {
-      // Create slightly different images by modifying the buffer
-      const image1 = createTestImage();
-      const image2 = Buffer.concat([createTestImage(), Buffer.from([0x00])]);
-      const image3 = Buffer.concat([createTestImage(), Buffer.from([0x01])]);
+      // Create valid PNGs with different colors
+      const image1 = createTestImage(100, 0, 0);   // Dark red
+      const image2 = createTestImage(0, 100, 0);   // Dark green
+      const image3 = createTestImage(0, 0, 100);   // Dark blue
 
       const promises = [
         request(app)
