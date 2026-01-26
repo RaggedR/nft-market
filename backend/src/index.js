@@ -100,10 +100,22 @@ app.get('/api/mint/license/:type', (req, res) => {
 app.get('/api/marketplace/:tokenId', async (req, res, next) => {
   try {
     const blockchainService = require('./services/blockchain');
-    const listing = await blockchainService.getListing(Number(req.params.tokenId));
-    res.json(listing);
+    const tokenId = Number(req.params.tokenId);
+    const listing = await blockchainService.getListing(tokenId);
+
+    if (!listing.active) {
+      return res.json({ listed: false });
+    }
+
+    res.json({
+      listed: true,
+      tokenId,
+      seller: listing.seller,
+      price: listing.price,
+      priceEth: (Number(listing.price) / 1e18).toFixed(4)
+    });
   } catch (e) {
-    res.json({ active: false });
+    res.json({ listed: false });
   }
 });
 
@@ -129,13 +141,7 @@ app.get('/api/generate/:id/image/:index', (req, res) => {
   res.send(buffer);
 });
 
-// Authenticated routes
-app.use('/api/mint', authMiddleware, mintRouter(upload));
-app.use('/api/detect', authMiddleware, detectRouter(upload));
-app.use('/api/marketplace', authMiddleware, marketplaceRouter);
-app.use('/api/generate', authMiddleware, generateRouter());
-
-// Public marketplace browsing
+// Public marketplace browsing (must be before authenticated marketplace routes)
 app.get('/api/marketplace', async (req, res, next) => {
   try {
     const blockchainService = require('./services/blockchain');
@@ -175,6 +181,12 @@ app.get('/api/marketplace', async (req, res, next) => {
     next(error);
   }
 });
+
+// Authenticated routes
+app.use('/api/mint', authMiddleware, mintRouter(upload));
+app.use('/api/detect', authMiddleware, detectRouter(upload));
+app.use('/api/marketplace', authMiddleware, marketplaceRouter);
+app.use('/api/generate', authMiddleware, generateRouter());
 
 // Error handler
 app.use((err, req, res, next) => {

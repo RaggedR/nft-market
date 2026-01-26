@@ -141,6 +141,15 @@ router.post('/delist', async (req, res, next) => {
       });
     }
 
+    // Verify ownership before delisting
+    const isOwner = await blockchainService.isOwner(tokenId, req.wallet);
+    if (!isOwner) {
+      return res.status(403).json({
+        error: 'You do not own this token',
+        code: 'NOT_OWNER'
+      });
+    }
+
     const result = await blockchainService.delistToken(tokenId, req.wallet);
 
     console.log(`[MARKETPLACE] Token ${tokenId} delisted by ${req.wallet}`);

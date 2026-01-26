@@ -7,8 +7,26 @@ const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true';
 const STABILITY_API_KEY = process.env.STABILITY_API_KEY;
 const STABILITY_API_URL = 'https://api.stability.ai/v2beta/stable-image/generate/ultra';
 
-// In-memory storage for generations (mock mode)
-const mockGenerations = new Map();
+// In-memory storage for generations
+const generations = new Map();
+
+// TTL for stored generations (1 hour)
+const GENERATION_TTL_MS = 60 * 60 * 1000;
+
+// Cleanup old generations every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [id, data] of generations.entries()) {
+    if (now - data.createdAt.getTime() > GENERATION_TTL_MS) {
+      generations.delete(id);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`[AI Service] Cleaned up ${cleaned} expired generations`);
+  }
+}, 10 * 60 * 1000);
 
 // Placeholder image (1x1 blue PNG)
 const PLACEHOLDER_PNG = Buffer.from(
@@ -91,7 +109,7 @@ function mockGenerateImage(prompt, style, count) {
  * @param {Object} data - Generation data including images
  */
 function storeGeneration(generationId, data) {
-  mockGenerations.set(generationId, {
+  generations.set(generationId, {
     ...data,
     createdAt: new Date(),
   });
@@ -103,7 +121,7 @@ function storeGeneration(generationId, data) {
  * @returns {Object|null}
  */
 function getGeneration(generationId) {
-  return mockGenerations.get(generationId) || null;
+  return generations.get(generationId) || null;
 }
 
 /**
@@ -129,14 +147,14 @@ function getStylePresets() {
  * Reset mock storage (for testing)
  */
 function resetMock() {
-  mockGenerations.clear();
+  generations.clear();
 }
 
 /**
  * Get all mock generations (for testing)
  */
 function getMockGenerations() {
-  return Object.fromEntries(mockGenerations);
+  return Object.fromEntries(generations);
 }
 
 module.exports = {

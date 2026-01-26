@@ -6,9 +6,24 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
 
 const aiService = require('../services/ai-generation');
+
+// Rate limit: 10 generations per hour per wallet (Stability AI is expensive)
+const generateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  keyGenerator: (req) => req.wallet || 'anonymous',
+  message: {
+    error: 'Too many generation requests. Please try again later.',
+    code: 'RATE_LIMITED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+});
 
 function createRouter() {
   const router = express.Router();
@@ -35,7 +50,7 @@ function createRouter() {
    * - generationId: string
    * - images: Array<{url: string, seed: number}>
    */
-  router.post('/', async (req, res, next) => {
+  router.post('/', generateLimiter, async (req, res, next) => {
     const generationId = uuidv4();
 
     try {
