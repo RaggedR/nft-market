@@ -21,10 +21,22 @@ class TestAccount {
 }
 
 const hardhatAccounts = [
-  TestAccount('Account #2 (User A)', '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC', '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a'),
-  TestAccount('Account #3 (User B)', '0x90F79bf6EB2c4f870365E785982E1f101E93b906', '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6'),
-  TestAccount('Account #4 (User C)', '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65', '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a'),
-  TestAccount('Account #5 (User D)', '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc', '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba'),
+  TestAccount(
+      'Account #2 (User A)',
+      '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+      '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a'),
+  TestAccount(
+      'Account #3 (User B)',
+      '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+      '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6'),
+  TestAccount(
+      'Account #4 (User C)',
+      '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+      '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a'),
+  TestAccount(
+      'Account #5 (User D)',
+      '0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc',
+      '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba'),
 ];
 
 /// Manages wallet connection and signing
@@ -157,12 +169,12 @@ class WalletProvider extends ChangeNotifier {
 
     // Use localhost in debug mode, production URL otherwise
     final domain = kDebugMode ? 'localhost' : 'nftmarket.com';
-    final uri = kDebugMode ? 'http://localhost:3000' : 'https://api.nftmarket.com';
+    final uri =
+        kDebugMode ? 'http://localhost:3000' : 'https://api.nftmarket.com';
 
     // SIWE message format (EIP-4361)
     // Each field must be on its own line with no extra whitespace
-    final message =
-        '$domain wants you to sign in with your Ethereum account:\n'
+    final message = '$domain wants you to sign in with your Ethereum account:\n'
         '$address\n'
         '\n'
         'Sign in to NFTmarket\n'

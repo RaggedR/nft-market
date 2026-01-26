@@ -394,8 +394,7 @@ class _TokenDetailPageState extends State<TokenDetailPage> {
       final api = ApiService(authToken: wallet.authToken);
 
       // Convert ETH to Wei (1 ETH = 10^18 Wei)
-      final priceWei =
-          (double.parse(priceEth) * 1e18).toStringAsFixed(0);
+      final priceWei = (double.parse(priceEth) * 1e18).toStringAsFixed(0);
 
       await api.listToken(tokenId: widget.tokenId, priceWei: priceWei);
 
@@ -446,7 +445,8 @@ class _TokenDetailPageState extends State<TokenDetailPage> {
       await api.buyToken(widget.tokenId);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Purchase successful! You now own this NFT.')),
+        const SnackBar(
+            content: Text('Purchase successful! You now own this NFT.')),
       );
 
       await _loadToken(); // Refresh to show new owner

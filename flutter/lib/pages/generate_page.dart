@@ -226,7 +226,8 @@ class _GeneratePageState extends State<GeneratePage> {
       child: ElevatedButton.icon(
         onPressed: _generating ? null : _generate,
         icon: const Icon(Icons.auto_awesome),
-        label: Text(wallet.isConnected ? 'Generate' : 'Connect Wallet to Generate'),
+        label: Text(
+            wallet.isConnected ? 'Generate' : 'Connect Wallet to Generate'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Theme.of(context).colorScheme.onPrimary,

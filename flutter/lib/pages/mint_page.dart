@@ -48,7 +48,8 @@ class _MintPageState extends State<MintPage> {
           mint.setImage(Uint8List.fromList(bytes), 'generated-art.png');
           // Pre-fill description with the prompt
           if (widget.prompt != null) {
-            mint.setDescription('Generated with AI: "${widget.prompt}" (${widget.style ?? "photographic"} style)');
+            mint.setDescription(
+                'Generated with AI: "${widget.prompt}" (${widget.style ?? "photographic"} style)');
           }
         }
       }

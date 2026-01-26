@@ -101,7 +101,8 @@ class HomePage extends StatelessWidget {
         _FeatureCard(
           icon: Icons.auto_awesome,
           title: 'AI Art Generation',
-          description: 'Create stunning artwork with AI, then mint it as an NFT.',
+          description:
+              'Create stunning artwork with AI, then mint it as an NFT.',
           actionLabel: 'Generate Art',
           onAction: () => context.go('/generate'),
         ),
