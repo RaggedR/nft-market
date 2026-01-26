@@ -90,6 +90,12 @@ function getGatewayUrl(ipfsUri) {
     return ipfsUri;
   }
   const hash = ipfsUri.replace("ipfs://", "");
+
+  // In mock mode, serve from local backend
+  if (USE_MOCK_IPFS) {
+    return `http://localhost:3000/ipfs/${hash}`;
+  }
+
   return `https://${PINATA_GATEWAY}/ipfs/${hash}`;
 }
 

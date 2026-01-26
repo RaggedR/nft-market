@@ -194,8 +194,16 @@ function hexToBinary(hex) {
   return binary;
 }
 
+/**
+ * Reset mock state (for testing)
+ */
+function resetMock() {
+  mockImageHashes.clear();
+}
+
 module.exports = {
   checkDuplicate,
   registerHash,
   computePerceptualHash,
+  resetMock,
 };

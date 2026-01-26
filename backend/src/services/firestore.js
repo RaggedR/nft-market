@@ -212,6 +212,15 @@ async function getDetectionHistory(tokenId, limit = 20) {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
+/**
+ * Reset mock state (for testing)
+ */
+function resetMock() {
+  mockTokens.clear();
+  mockKeys.clear();
+  mockDetections.length = 0;
+}
+
 module.exports = {
   getDb,
   createToken,
@@ -221,4 +230,5 @@ module.exports = {
   getKey,
   logDetection,
   getDetectionHistory,
+  resetMock,
 };
