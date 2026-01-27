@@ -186,6 +186,17 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  // ============ Gallery ============
+
+  /// Get all tokens owned by an address (public)
+  Future<List<Map<String, dynamic>>> getGallery(String address) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/gallery/$address'),
+    );
+    final data = await _handleResponse(response);
+    return List<Map<String, dynamic>>.from(data['tokens'] ?? []);
+  }
+
   // ============ Marketplace ============
 
   /// Get all active listings (public)

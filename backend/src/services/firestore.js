@@ -51,6 +51,7 @@ async function createToken(data) {
     tokenId: data.tokenId,
     mintId: data.mintId,
     wallet: data.wallet,
+    currentOwner: data.wallet, // Initially, creator is the owner
     name: data.name,
     description: data.description || "",
     licenseType: data.licenseType,
@@ -97,7 +98,7 @@ async function getToken(tokenId) {
 }
 
 /**
- * Get tokens by wallet
+ * Get tokens by wallet (creator)
  */
 async function getTokensByWallet(wallet, limit = 50) {
   if (USE_MOCK_FIRESTORE) {
@@ -116,6 +117,48 @@ async function getTokensByWallet(wallet, limit = 50) {
     .get();
 
   return snapshot.docs.map((doc) => doc.data());
+}
+
+/**
+ * Get tokens by current owner
+ */
+async function getTokensByOwner(ownerAddress, limit = 50) {
+  if (USE_MOCK_FIRESTORE) {
+    const tokens = Array.from(mockTokens.values())
+      .filter((t) => t.currentOwner?.toLowerCase() === ownerAddress.toLowerCase())
+      .slice(0, limit);
+    return tokens;
+  }
+
+  const db = getDb();
+  const snapshot = await db
+    .collection("tokens")
+    .where("currentOwner", "==", ownerAddress.toLowerCase())
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) => doc.data());
+}
+
+/**
+ * Update token owner (after purchase)
+ */
+async function updateTokenOwner(tokenId, newOwner) {
+  if (USE_MOCK_FIRESTORE) {
+    const token = mockTokens.get(String(tokenId));
+    if (token) {
+      token.currentOwner = newOwner.toLowerCase();
+      mockTokens.set(String(tokenId), token);
+      console.log(`MOCK FIRESTORE: Updated token ${tokenId} owner to ${newOwner}`);
+    }
+    return;
+  }
+
+  const db = getDb();
+  await db.collection("tokens").doc(String(tokenId)).update({
+    currentOwner: newOwner.toLowerCase(),
+  });
 }
 
 /**
@@ -226,6 +269,8 @@ module.exports = {
   createToken,
   getToken,
   getTokensByWallet,
+  getTokensByOwner,
+  updateTokenOwner,
   storeKey,
   getKey,
   logDetection,
