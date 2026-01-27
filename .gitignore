@@ -26,6 +26,9 @@ Thumbs.db
 contracts/cache/
 contracts/artifacts/
 
+# Foundry
+contracts/out/
+
 # Coverage
 coverage/
 

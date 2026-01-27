@@ -1,8 +1,4 @@
-// IPFS upload using Pinata
-// Get your API keys at https://app.pinata.cloud/
-
-const PINATA_API_KEY = process.env.NEXT_PUBLIC_PINATA_API_KEY || "";
-const PINATA_SECRET_KEY = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || "";
+// IPFS upload via server-side API route (keys not exposed to client)
 
 export interface NFTMetadata {
   name: string;
@@ -18,48 +14,38 @@ export async function uploadImageToPinata(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(
-    "https://api.pinata.cloud/pinning/pinFileToIPFS",
-    {
-      method: "POST",
-      headers: {
-        pinata_api_key: PINATA_API_KEY,
-        pinata_secret_api_key: PINATA_SECRET_KEY,
-      },
-      body: formData,
-    }
-  );
+  const response = await fetch("/api/ipfs", {
+    method: "POST",
+    body: formData,
+  });
 
   if (!response.ok) {
-    throw new Error("Failed to upload image to IPFS");
+    const error = await response.json();
+    throw new Error(error.error || "Failed to upload image to IPFS");
   }
 
   const data = await response.json();
-  return `ipfs://${data.IpfsHash}`;
+  return `ipfs://${data.ipfsHash}`;
 }
 
 export async function uploadMetadataToPinata(
   metadata: NFTMetadata
 ): Promise<string> {
-  const response = await fetch(
-    "https://api.pinata.cloud/pinning/pinJSONToIPFS",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        pinata_api_key: PINATA_API_KEY,
-        pinata_secret_api_key: PINATA_SECRET_KEY,
-      },
-      body: JSON.stringify(metadata),
-    }
-  );
+  const response = await fetch("/api/ipfs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(metadata),
+  });
 
   if (!response.ok) {
-    throw new Error("Failed to upload metadata to IPFS");
+    const error = await response.json();
+    throw new Error(error.error || "Failed to upload metadata to IPFS");
   }
 
   const data = await response.json();
-  return `ipfs://${data.IpfsHash}`;
+  return `ipfs://${data.ipfsHash}`;
 }
 
 export function ipfsToHttp(ipfsUri: string): string {

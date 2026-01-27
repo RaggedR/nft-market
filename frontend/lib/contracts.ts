@@ -1,9 +1,11 @@
-// Contract deployed address on local Anvil
-export const NFT_LICENSING_ADDRESS =
-  "0x5FbDB2315678afecb367f032d93F642f64180aa3" as const;
+// Contract address - configurable via environment variable
+// Default is local Anvil address for development
+export const NFT_LICENSING_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3") as `0x${string}`;
 
-// Local chain ID
-export const CHAIN_ID = 31337;
+// Chain ID - configurable via environment variable
+// Default is 31337 (local Anvil) for development
+export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "31337", 10);
 
 export const NFT_LICENSING_ABI = [
   {

@@ -245,6 +245,7 @@ contract NFTLicensingSystem is ERC721, INFTLicensing {
     function listForSale(uint256 tokenId, uint256 askingPrice) external {
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
         if (_listings[tokenId].isActive) revert AlreadyListed();
+        if (askingPrice == 0) revert InvalidOffer();
 
         _listings[tokenId] = Listing({
             askingPrice: askingPrice,
@@ -303,14 +304,14 @@ contract NFTLicensingSystem is ERC721, INFTLicensing {
         // Remove listing
         _removeListing(tokenId);
 
-        // Transfer funds to seller
-        (bool success,) = payable(msg.sender).call{value: amount}("");
-        if (!success) revert TransferFailed();
-
-        // Transfer NFT to buyer
+        // Transfer NFT to buyer first (checks-effects-interactions pattern)
         _inMarketplaceTransfer = true;
         _transfer(msg.sender, buyer, tokenId);
         _inMarketplaceTransfer = false;
+
+        // Transfer funds to seller last to prevent reentrancy
+        (bool success,) = payable(msg.sender).call{value: amount}("");
+        if (!success) revert TransferFailed();
 
         emit OfferAccepted(tokenId, msg.sender, buyer, amount);
     }
