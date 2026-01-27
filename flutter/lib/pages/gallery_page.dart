@@ -82,11 +82,14 @@ class _GalleryPageState extends State<GalleryPage> {
 
   void _searchGallery() {
     final address = _searchController.text.trim();
-    if (address.isNotEmpty && address.startsWith('0x') && address.length == 42) {
+    if (address.isNotEmpty &&
+        address.startsWith('0x') &&
+        address.length == 42) {
       context.go('/gallery/$address');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid wallet address (0x...)')),
+        const SnackBar(
+            content: Text('Please enter a valid wallet address (0x...)')),
       );
     }
   }
@@ -324,7 +327,8 @@ class _GalleryPageState extends State<GalleryPage> {
                     const SizedBox(height: 8),
                     Text(
                       'Be the first to mint an NFT!',
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                      style:
+                          TextStyle(color: Colors.grey.shade500, fontSize: 12),
                     ),
                   ],
                 ),
@@ -379,8 +383,10 @@ class _GalleryCard extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor:
-                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                backgroundColor: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.1),
                 child: Icon(Icons.account_circle,
                     color: Theme.of(context).colorScheme.primary),
               ),
