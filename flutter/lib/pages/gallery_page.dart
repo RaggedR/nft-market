@@ -17,39 +17,37 @@ class GalleryPage extends StatefulWidget {
 
 class _GalleryPageState extends State<GalleryPage> {
   List<Map<String, dynamic>> _tokens = [];
+  List<Map<String, dynamic>> _galleries = [];
   bool _loading = true;
   String? _error;
   String? _ownerAddress;
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadGallery();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reload if viewing own gallery and wallet changes
     final wallet = context.read<WalletProvider>();
     final targetAddress = widget.address ?? wallet.address;
-    if (targetAddress != _ownerAddress && targetAddress != null) {
-      _loadGallery();
+    if (targetAddress != _ownerAddress) {
+      _loadData();
     }
   }
 
-  Future<void> _loadGallery() async {
+  Future<void> _loadData() async {
     final wallet = context.read<WalletProvider>();
     final targetAddress = widget.address ?? wallet.address;
-
-    if (targetAddress == null) {
-      setState(() {
-        _loading = false;
-        _tokens = [];
-        _ownerAddress = null;
-      });
-      return;
-    }
 
     setState(() {
       _loading = true;
@@ -59,8 +57,18 @@ class _GalleryPageState extends State<GalleryPage> {
 
     try {
       final api = ApiService();
-      final tokens = await api.getGallery(targetAddress);
+
+      // Always load the gallery list for discovery
+      final galleries = await api.getGalleryList();
+
+      // Load tokens if we have an address to show
+      List<Map<String, dynamic>> tokens = [];
+      if (targetAddress != null) {
+        tokens = await api.getGallery(targetAddress);
+      }
+
       setState(() {
+        _galleries = galleries;
         _tokens = tokens;
         _loading = false;
       });
@@ -72,6 +80,17 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
+  void _searchGallery() {
+    final address = _searchController.text.trim();
+    if (address.isNotEmpty && address.startsWith('0x') && address.length == 42) {
+      context.go('/gallery/$address');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid wallet address (0x...)')),
+      );
+    }
+  }
+
   bool get _isOwnGallery {
     final wallet = context.read<WalletProvider>();
     return widget.address == null ||
@@ -80,7 +99,7 @@ class _GalleryPageState extends State<GalleryPage> {
 
   String get _pageTitle {
     if (widget.address == null) {
-      return 'My Gallery';
+      return 'Galleries';
     }
     final shortAddress =
         '${widget.address!.substring(0, 6)}...${widget.address!.substring(widget.address!.length - 4)}';
@@ -94,7 +113,13 @@ class _GalleryPageState extends State<GalleryPage> {
         title: Text(_pageTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
+          onPressed: () {
+            if (widget.address != null) {
+              context.go('/gallery');
+            } else {
+              context.go('/');
+            }
+          },
         ),
         actions: const [
           WalletButton(),
@@ -106,30 +131,6 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 
   Widget _buildBody() {
-    final wallet = context.watch<WalletProvider>();
-
-    // If viewing own gallery but not connected
-    if (widget.address == null && !wallet.isConnected) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_balance_wallet,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text('Connect your wallet to view your gallery',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => wallet.connect(),
-              icon: const Icon(Icons.account_balance_wallet),
-              label: const Text('Connect Wallet'),
-            ),
-          ],
-        ),
-      );
-    }
-
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -147,7 +148,7 @@ class _GalleryPageState extends State<GalleryPage> {
             Text(_error!, style: TextStyle(color: Colors.grey.shade600)),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _loadGallery,
+              onPressed: _loadData,
               child: const Text('Retry'),
             ),
           ],
@@ -155,68 +156,261 @@ class _GalleryPageState extends State<GalleryPage> {
       );
     }
 
-    if (_tokens.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search bar
+                  _buildSearchBar(),
+                  const SizedBox(height: 24),
+
+                  // Show user's tokens if viewing a specific gallery
+                  if (widget.address != null || _ownerAddress != null) ...[
+                    _buildUserGallery(),
+                    const SizedBox(height: 32),
+                  ],
+
+                  // Gallery discovery section
+                  _buildGalleryDiscovery(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Enter wallet address (0x...)',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onSubmitted: (_) => _searchGallery(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton(
+          onPressed: _searchGallery,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          ),
+          child: const Text('View Gallery'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserGallery() {
+    final wallet = context.watch<WalletProvider>();
+    final shortAddress = _ownerAddress != null && _ownerAddress!.length > 10
+        ? '${_ownerAddress!.substring(0, 6)}...${_ownerAddress!.substring(_ownerAddress!.length - 4)}'
+        : _ownerAddress ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(Icons.collections_outlined,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
             Text(
-              _isOwnGallery ? 'No artworks yet' : 'This gallery is empty',
+              _isOwnGallery ? 'My Collection' : 'Collection',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.bold,
                   ),
             ),
-            if (_isOwnGallery) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Mint your first NFT or buy one from the marketplace!',
-                style: TextStyle(color: Colors.grey.shade500),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => context.go('/mint'),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Mint Art'),
-                  ),
-                  const SizedBox(width: 16),
-                  OutlinedButton.icon(
-                    onPressed: () => context.go('/marketplace'),
-                    icon: const Icon(Icons.storefront),
-                    label: const Text('Browse Marketplace'),
-                  ),
-                ],
+            if (!_isOwnGallery) ...[
+              const SizedBox(width: 8),
+              Chip(
+                label: Text(shortAddress, style: const TextStyle(fontSize: 12)),
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ],
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadGallery,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+        const SizedBox(height: 16),
+        if (_tokens.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.collections_outlined,
+                        size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text(
+                      _isOwnGallery
+                          ? 'No artworks yet'
+                          : 'This gallery is empty',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    if (_isOwnGallery && wallet.isConnected) ...[
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => context.go('/mint'),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Mint Your First NFT'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 280,
+              childAspectRatio: 0.85,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: _tokens.length,
+            itemBuilder: (context, index) {
+              final token = _tokens[index];
+              return _TokenCard(
+                token: token,
+                onTap: () => context.go('/token/${token['tokenId']}'),
+              );
+            },
           ),
-          itemCount: _tokens.length,
-          itemBuilder: (context, index) {
-            final token = _tokens[index];
-            return _TokenCard(
-              token: token,
-              onTap: () => context.go('/token/${token['tokenId']}'),
-            );
-          },
+      ],
+    );
+  }
+
+  Widget _buildGalleryDiscovery() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Browse Galleries',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 16),
+        if (_galleries.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.people_outline,
+                        size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No galleries yet',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Be the first to mint an NFT!',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 300,
+              childAspectRatio: 2.5,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: _galleries.length,
+            itemBuilder: (context, index) {
+              final gallery = _galleries[index];
+              return _GalleryCard(
+                gallery: gallery,
+                onTap: () => context.go('/gallery/${gallery['address']}'),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _GalleryCard extends StatelessWidget {
+  final Map<String, dynamic> gallery;
+  final VoidCallback onTap;
+
+  const _GalleryCard({required this.gallery, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final address = gallery['address'] ?? '';
+    final shortAddress = address.length > 10
+        ? '${address.substring(0, 6)}...${address.substring(address.length - 4)}'
+        : address;
+    final tokenCount = gallery['tokenCount'] ?? 0;
+    final previewName = gallery['previewTokenName'] ?? 'NFT';
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor:
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                child: Icon(Icons.account_circle,
+                    color: Theme.of(context).colorScheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      shortAddress,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$tokenCount NFT${tokenCount == 1 ? '' : 's'} · $previewName',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios,
+                  size: 16, color: Colors.grey.shade400),
+            ],
+          ),
         ),
       ),
     );

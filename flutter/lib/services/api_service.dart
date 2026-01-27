@@ -188,6 +188,15 @@ class ApiService {
 
   // ============ Gallery ============
 
+  /// Get list of galleries (wallets with NFTs)
+  Future<List<Map<String, dynamic>>> getGalleryList() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/gallery'),
+    );
+    final data = await _handleResponse(response);
+    return List<Map<String, dynamic>>.from(data['galleries'] ?? []);
+  }
+
   /// Get all tokens owned by an address (public)
   Future<List<Map<String, dynamic>>> getGallery(String address) async {
     final response = await http.get(

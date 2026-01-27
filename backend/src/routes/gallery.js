@@ -10,6 +10,20 @@ const firestoreService = require('../services/firestore');
 const ipfsService = require('../services/ipfs');
 
 const LICENSE_NAMES = ['display', 'commercial', 'transfer'];
+const VALID_LICENSE_TYPES = new Set(LICENSE_NAMES);
+
+/**
+ * GET /api/gallery
+ * Get list of wallets that have NFTs (for discovery)
+ */
+router.get('/', async (req, res, next) => {
+  try {
+    const galleries = await firestoreService.getGalleryList(20);
+    res.json({ galleries });
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * GET /api/gallery/:address
@@ -40,7 +54,9 @@ router.get('/:address', async (req, res, next) => {
         name: token.name || `NFTmarket #${token.tokenId}`,
         description: token.description || '',
         previewUrl,
-        licenseType: LICENSE_NAMES[token.licenseType] || 'unknown',
+        licenseType: VALID_LICENSE_TYPES.has(token.licenseType)
+          ? token.licenseType
+          : (LICENSE_NAMES[token.licenseType] || 'unknown'),
         creator: token.wallet,
         mintedAt: token.createdAt,
       };

@@ -28,4 +28,7 @@ contracts/artifacts/
 
 # Coverage
 coverage/
+
+# Firebase
 firebase-debug.log
+emulator-data/
