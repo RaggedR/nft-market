@@ -2,13 +2,14 @@
 pragma solidity ^0.8.24;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {INFTLicensing} from "./interfaces/INFTLicensing.sol";
 import {TokenIdCodec} from "./libraries/TokenIdCodec.sol";
 
 /// @title NFTLicensingSystem
 /// @notice Multi-tier NFT licensing system with permanent watermark and transfer restrictions
 /// @dev Implements ERC721 with custom transfer logic for different license types
-contract NFTLicensingSystem is ERC721, INFTLicensing {
+contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
     using TokenIdCodec for uint256;
 
     // ============ State Variables ============
@@ -285,7 +286,7 @@ contract NFTLicensingSystem is ERC721, INFTLicensing {
     }
 
     /// @inheritdoc INFTLicensing
-    function acceptOffer(uint256 tokenId, uint256 offerIndex) external {
+    function acceptOffer(uint256 tokenId, uint256 offerIndex) external nonReentrant {
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
         if (offerIndex >= _offers[tokenId].length) revert InvalidOffer();
 
@@ -337,7 +338,7 @@ contract NFTLicensingSystem is ERC721, INFTLicensing {
     }
 
     /// @inheritdoc INFTLicensing
-    function withdrawOffer(uint256 tokenId, uint256 offerIndex) external {
+    function withdrawOffer(uint256 tokenId, uint256 offerIndex) external nonReentrant {
         if (offerIndex >= _offers[tokenId].length) revert InvalidOffer();
 
         Offer storage offer = _offers[tokenId][offerIndex];
@@ -357,7 +358,7 @@ contract NFTLicensingSystem is ERC721, INFTLicensing {
     }
 
     /// @inheritdoc INFTLicensing
-    function withdraw() external {
+    function withdraw() external nonReentrant {
         uint256 amount = _pendingWithdrawals[msg.sender];
         if (amount == 0) revert NoFundsToWithdraw();
 
