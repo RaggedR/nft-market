@@ -1,5 +1,8 @@
 // IPFS upload via server-side API route (keys not exposed to client)
 
+// Configurable IPFS gateway
+const IPFS_GATEWAY = process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://gateway.pinata.cloud/ipfs/";
+
 export interface NFTMetadata {
   name: string;
   description: string;
@@ -50,7 +53,7 @@ export async function uploadMetadataToPinata(
 
 export function ipfsToHttp(ipfsUri: string): string {
   if (ipfsUri.startsWith("ipfs://")) {
-    return ipfsUri.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
+    return ipfsUri.replace("ipfs://", IPFS_GATEWAY);
   }
   return ipfsUri;
 }
