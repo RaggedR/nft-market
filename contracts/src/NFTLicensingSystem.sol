@@ -3,13 +3,15 @@ pragma solidity ^0.8.24;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {INFTLicensing} from "./interfaces/INFTLicensing.sol";
 import {TokenIdCodec} from "./libraries/TokenIdCodec.sol";
 
 /// @title NFTLicensingSystem
 /// @notice Multi-tier NFT licensing system with permanent watermark and transfer restrictions
 /// @dev Implements ERC721 with custom transfer logic for different license types
-contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
+contract NFTLicensingSystem is ERC721, ReentrancyGuard, Pausable, Ownable, INFTLicensing {
     using TokenIdCodec for uint256;
 
     // ============ State Variables ============
@@ -64,14 +66,14 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
 
     // ============ Constructor ============
 
-    constructor() ERC721("NFT Licensing System", "NFTL") {}
+    constructor() ERC721("NFT Licensing System", "NFTL") Ownable(msg.sender) {}
 
     // ============ External Functions ============
 
     /// @notice Creates a new artwork and mints the copyright token to the caller
     /// @param metadataURI The URI for artwork metadata (contains title, image, etc.)
     /// @return artworkId The unique identifier for the artwork
-    function createArtwork(string calldata metadataURI) external returns (uint160 artworkId) {
+    function createArtwork(string calldata metadataURI) external whenNotPaused returns (uint160 artworkId) {
         artworkId = ++_artworkIdCounter;
 
         _artworks[artworkId] = Artwork({
@@ -103,7 +105,7 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
         uint160 artworkId,
         LicenseType licenseType,
         address to
-    ) external returns (uint256 tokenId) {
+    ) external whenNotPaused returns (uint256 tokenId) {
         if (to == address(0)) revert ZeroAddress();
 
         Artwork storage artwork = _artworks[artworkId];
@@ -145,7 +147,7 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
         uint160 artworkId,
         address to,
         RetentionType retention
-    ) external {
+    ) external whenNotPaused {
         if (to == address(0)) revert ZeroAddress();
 
         Artwork storage artwork = _artworks[artworkId];
@@ -243,7 +245,7 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
     // ============ Marketplace Functions ============
 
     /// @inheritdoc INFTLicensing
-    function listForSale(uint256 tokenId, uint256 askingPrice) external {
+    function listForSale(uint256 tokenId, uint256 askingPrice) external whenNotPaused {
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
         if (_listings[tokenId].isActive) revert AlreadyListed();
         if (askingPrice == 0) revert InvalidOffer();
@@ -271,7 +273,7 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
     }
 
     /// @inheritdoc INFTLicensing
-    function makeOffer(uint256 tokenId) external payable {
+    function makeOffer(uint256 tokenId) external payable whenNotPaused {
         if (!_listings[tokenId].isActive) revert NotListed();
         if (msg.value == 0) revert InvalidOffer();
 
@@ -286,7 +288,7 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
     }
 
     /// @inheritdoc INFTLicensing
-    function acceptOffer(uint256 tokenId, uint256 offerIndex) external nonReentrant {
+    function acceptOffer(uint256 tokenId, uint256 offerIndex) external nonReentrant whenNotPaused {
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
         if (offerIndex >= _offers[tokenId].length) revert InvalidOffer();
 
@@ -366,6 +368,20 @@ contract NFTLicensingSystem is ERC721, ReentrancyGuard, INFTLicensing {
 
         (bool success,) = payable(msg.sender).call{value: amount}("");
         if (!success) revert TransferFailed();
+    }
+
+    // ============ Admin Functions ============
+
+    /// @notice Pause all marketplace and minting operations
+    /// @dev Only callable by contract owner
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause all marketplace and minting operations
+    /// @dev Only callable by contract owner
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /// @inheritdoc INFTLicensing
